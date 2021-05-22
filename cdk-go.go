@@ -26,6 +26,7 @@ func NewCdkGoStack(scope constructs.Construct, id string, props *CdkGoStackProps
 
 	topic := awssns.NewTopic(stack, jsii.String("MyTopic"), &awssns.TopicProps{
 		DisplayName: jsii.String("MyCoolTopic"),
+		TopicName:   jsii.String("mytopic"),
 	})
 
 	key := awskms.Key_FromKeyArn(stack, jsii.String("common_key"), jsii.String("arn:aws:kms:ap-southeast-2:186680617253:key/09b80389-053d-4e3c-9202-aff737614463"))
@@ -38,26 +39,8 @@ func NewCdkGoStack(scope constructs.Construct, id string, props *CdkGoStackProps
 	})
 
 	subscription := awssnssubscriptions.NewSqsSubscription(queue, &awssnssubscriptions.SqsSubscriptionProps{})
-	subscription.Bind(topic)
 
-	// snsPrincipal := awsiam.NewServicePrincipal(jsii.String("sns"), &awsiam.ServicePrincipalOpts{})
-	// grantedPrincipal := []awsiam.IPrincipal{snsPrincipal.GrantPrincipal()}
-
-	// statment := awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
-	// 	Effect: awsiam.Effect_ALLOW,
-	// 	Actions: jsii.Strings(
-	// 		"sqs:SendMessage",
-	// 	),
-	// 	Principals: &grantedPrincipal,
-	// 	Resources:  jsii.Strings("arn:aws:sqs:ap-southeast-2:186680617253:test-queue"),
-	// })
-
-	// queue.AddToResourcePolicy(statment)
-
-	// queuePolicy := awssqs.NewQueuePolicy(stack, jsii.String("queue_policy"), &awssqs.QueuePolicyProps{
-	// 	Queues: &[]awssqs.IQueue{queue},
-	// })
-	// queuePolicy.Document()
+	topic.AddSubscription(subscription)
 
 	return stack
 }

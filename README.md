@@ -1,1 +1,6 @@
 [![build](https://github.com/sogyals429/cdk-go/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/sogyals429/cdk-go/actions/workflows/go.yml)
+
+# wat?
+
+> Playing around with AWS Go Lang CDK
+

@@ -2,7 +2,10 @@ package main
 
 import (
 	"github.com/aws/aws-cdk-go/awscdk"
+	"github.com/aws/aws-cdk-go/awscdk/awsiam"
 	"github.com/aws/aws-cdk-go/awscdk/awskms"
+	"github.com/aws/aws-cdk-go/awscdk/awslambda"
+	"github.com/aws/aws-cdk-go/awscdk/awss3assets"
 	"github.com/aws/aws-cdk-go/awscdk/awssns"
 	"github.com/aws/aws-cdk-go/awscdk/awssnssubscriptions"
 	"github.com/aws/aws-cdk-go/awscdk/awssqs"
@@ -23,24 +26,65 @@ func NewCdkGoStack(scope constructs.Construct, id string, props *CdkGoStackProps
 		sprops = props.StackProps
 	}
 	stack := awscdk.NewStack(scope, &id, &sprops)
+	common_key := awskms.Key_FromKeyArn(stack, jsii.String("common_key"), jsii.String("arn:aws:kms:ap-southeast-2:186680617253:key/09b80389-053d-4e3c-9202-aff737614463"))
 
 	topic := awssns.NewTopic(stack, jsii.String("MyTopic"), &awssns.TopicProps{
 		DisplayName: jsii.String("MyCoolTopic"),
 		TopicName:   jsii.String("mytopic"),
 	})
 
-	key := awskms.Key_FromKeyArn(stack, jsii.String("common_key"), jsii.String("arn:aws:kms:ap-southeast-2:186680617253:key/09b80389-053d-4e3c-9202-aff737614463"))
-
 	queue := awssqs.NewQueue(stack, jsii.String("NewQueue"), &awssqs.QueueProps{
 		QueueName:           jsii.String("cdk-queue"),
 		DataKeyReuse:        awscdk.Duration_Seconds(jsii.Number(600)),
 		Encryption:          awssqs.QueueEncryption_KMS_MANAGED,
-		EncryptionMasterKey: key,
+		EncryptionMasterKey: common_key,
 	})
 
 	subscription := awssnssubscriptions.NewSqsSubscription(queue, &awssnssubscriptions.SqsSubscriptionProps{})
 
 	topic.AddSubscription(subscription)
+
+	myFunc := awslambda.NewFunction(stack, jsii.String("MyFunction"), &awslambda.FunctionProps{
+		FunctionName: jsii.String("mygofunc"),
+		Description:  jsii.String("Function made using go CDK"),
+		Timeout:      awscdk.Duration_Seconds(jsii.Number(10)),
+		Handler:      jsii.String("main"),
+		Runtime:      awslambda.Runtime_GO_1_X(),
+		Code:         awslambda.Code_FromAsset(jsii.String("./funcs/function.zip"), &awss3assets.AssetOptions{}),
+	})
+
+	awslambda.NewEventSourceMapping(stack, jsii.String("new source"), &awslambda.EventSourceMappingProps{
+		BatchSize:      jsii.Number(10),
+		EventSourceArn: queue.QueueArn(),
+		Target:         myFunc,
+	})
+
+	sqsPolicy := awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
+		Effect: awsiam.Effect_ALLOW,
+		Actions: jsii.Strings(
+			"sqs:DeleteMessage",
+			"sqs:GetQueueUrl",
+			"sqs:ListDeadLetterSourceQueues",
+			"sqs:DeleteMessageBatch",
+			"sqs:ReceiveMessage",
+			"sqs:GetQueueAttributes",
+			"sqs:ListQueueTags",
+		),
+		Resources: jsii.Strings(*queue.QueueArn()),
+	})
+
+	myFunc.AddToRolePolicy(sqsPolicy)
+
+	kmsPolicy := awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
+		Effect: awsiam.Effect_ALLOW,
+		Actions: jsii.Strings(
+			"kms:Decrypt",
+			"kms:GenerateDataKey",
+		),
+		Resources: jsii.Strings(*common_key.KeyArn()),
+	})
+
+	myFunc.AddToRolePolicy(kmsPolicy)
 
 	return stack
 }

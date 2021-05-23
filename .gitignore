@@ -19,3 +19,5 @@
 cdk.out
 
 .DS_Store
+
+**/*.go

@@ -4,4 +4,3 @@
 # wat?
 
 > Playing around with AWS Go Lang CDK
-
